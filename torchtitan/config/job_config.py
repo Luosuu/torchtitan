@@ -37,6 +37,9 @@ class Profiling:
     profile_freq: int = 10
     """How often to collect profile traces, in interations"""
 
+    profile_active_steps: int = 1
+    """Number of active steps to profile in each profiling cycle"""
+
     enable_memory_snapshot: bool = False
     """Whether to dump memory snapshot"""
 
