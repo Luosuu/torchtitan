@@ -43,6 +43,24 @@ class Profiling:
     save_memory_snapshot_folder: str = "memory_snapshot"
     """Memory snapshot files location"""
 
+    enable_categorized_memory: bool = False
+    """Whether to enable categorized memory profiling with stack traces"""
+
+    memory_trace_context: Literal["state", "alloc", "all"] = "all"
+    """
+    Controls traceback recording for memory profiling:
+    - 'state': tracebacks for currently allocated memory
+    - 'alloc': additionally keep tracebacks for alloc calls
+    - 'all': additionally keep tracebacks for free calls
+    """
+
+    memory_trace_stacks: Literal["python", "all"] = "python"
+    """
+    Controls stack frame recording for memory profiling:
+    - 'python': include Python, TorchScript, and inductor frames
+    - 'all': additionally include C++ frames
+    """
+
 
 @dataclass
 class Metrics:
