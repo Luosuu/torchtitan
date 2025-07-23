@@ -10,6 +10,9 @@ authors = [
 ]
 keywords = ["pytorch", "training", "llm"]
 dependencies = [
+    # PyTorch nightly for Linux (overridden to latest)
+    "torch",
+    
     # Stateful Dataloader
     "torchdata>=0.8.0",
 
@@ -24,6 +27,7 @@ dependencies = [
     "fsspec",
     "tyro",
     "tensorboard",
+    "matplotlib"
 ]
 dynamic = ["version"]
 
@@ -55,3 +59,20 @@ include = ["torchtitan*"]
 
 [tool.pytest.ini_options]
 addopts = ["--showlocals"]  # show local variables in tracebacks
+
+# ---- uv configuration for PyTorch nightly ---- #
+[tool.uv]
+prerelease = "allow"
+override-dependencies = [
+    "torch==2.9.0.dev20250723+cu126",
+    "pytorch-triton==3.4.0+git11ec6354"
+]
+
+[[tool.uv.index]]
+name = "pytorch-nightly"
+url = "https://download.pytorch.org/whl/nightly/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-nightly" }]
+pytorch-triton = [{ index = "pytorch-nightly" }]
