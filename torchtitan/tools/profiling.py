@@ -53,6 +53,16 @@ def maybe_enable_profiling(config: JobConfig, *, global_step: int = 0):
             output_file = os.path.join(output_file, f"rank{rank}_trace.json")
 
             prof.export_chrome_trace(output_file)
+            
+            # Export memory timeline if categorized memory profiling is enabled
+            if config.profiling.enable_categorized_memory:
+                try:
+                    memory_timeline_file = os.path.join(curr_trace_dir, f"rank{rank}_memory_timeline.html")
+                    prof.export_memory_timeline(memory_timeline_file, device="cuda:0")
+                    logger.info(f"Exported memory timeline to {memory_timeline_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to export memory timeline: {e}")
+            
             logger.info(
                 f"Finished dumping profiler traces in {time.monotonic() - begin:.2f} seconds"
             )
@@ -143,24 +153,19 @@ def maybe_enable_memory_snapshot(config: JobConfig, *, global_step: int = 0):
                 logger.info(f"Dumping memory snapshot at step {curr_step}")
                 begin = time.monotonic()
                 
-                # Save pickle snapshot (default format)
+                # Save pickle snapshot with categorized memory information
                 snapshot = torch.cuda.memory._snapshot()
                 with open(
                     f"{curr_snapshot_dir}/rank{rank}_memory_snapshot.pickle", "wb"
                 ) as output:
                     pickle.dump(snapshot, output)
                 
-                # If categorized memory is enabled, also export chrome trace format
+                # Log information about categorized profiling
                 if config.profiling.enable_categorized_memory:
-                    try:
-                        # Export chrome trace for memory timeline visualization
-                        chrome_trace_file = f"{curr_snapshot_dir}/rank{rank}_memory_timeline.json"
-                        torch.cuda.memory._export_memory_snapshot(
-                            snapshot, chrome_trace_file, start_ms=0
-                        )
-                        logger.info(f"Exported memory chrome trace to {chrome_trace_file}")
-                    except Exception as e:
-                        logger.warning(f"Failed to export memory chrome trace: {e}")
+                    logger.info(
+                        f"Snapshot contains categorized memory data with stack traces. "
+                        f"View at https://pytorch.org/memory_viz by uploading the .pickle file"
+                    )
                 
                 logger.info(
                     f"Finished dumping memory snapshot in {time.monotonic() - begin:.2f} seconds"
