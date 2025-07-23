@@ -70,7 +70,7 @@ def maybe_enable_profiling(
         if not os.path.exists(trace_dir):
             os.makedirs(trace_dir, exist_ok=True)
 
-        warmup, active = WARMUP, 1
+        warmup, active = WARMUP, config.profiling.profile_active_steps
         wait = profile_freq - (active + warmup)
         assert (
             wait >= 0
