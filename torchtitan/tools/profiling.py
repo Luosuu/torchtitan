@@ -72,6 +72,10 @@ def maybe_enable_profiling(config: JobConfig, *, global_step: int = 0):
             gpu_device_profiled = torch.profiler.ProfilerActivity.CUDA
         elif torch.xpu.is_available():
             gpu_device_profiled = torch.profiler.ProfilerActivity.XPU
+        # Check if we should include memory profiling for categorized analysis
+        profile_memory = config.profiling.enable_categorized_memory
+        with_stack = config.profiling.enable_categorized_memory
+        
         with torch.profiler.profile(
             activities=[
                 torch.profiler.ProfilerActivity.CPU,
@@ -80,6 +84,8 @@ def maybe_enable_profiling(config: JobConfig, *, global_step: int = 0):
             schedule=torch.profiler.schedule(wait=wait, warmup=warmup, active=active),
             on_trace_ready=trace_handler,
             record_shapes=True,
+            profile_memory=profile_memory,
+            with_stack=with_stack,
         ) as torch_profiler:
             torch_profiler.step_num = global_step
             yield torch_profiler
@@ -99,10 +105,23 @@ def maybe_enable_memory_snapshot(config: JobConfig, *, global_step: int = 0):
         rank = torch.distributed.get_rank()
 
         class MemoryProfiler:
-            def __init__(self, step_num: int, freq: int):
-                torch.cuda.memory._record_memory_history(
-                    max_entries=MEMORY_SNAPSHOT_MAX_ENTRIES
-                )
+            def __init__(self, step_num: int, freq: int, config: JobConfig):
+                # Configure memory history recording based on categorized profiling settings
+                if config.profiling.enable_categorized_memory:
+                    logger.info(
+                        f"Enabling categorized memory profiling with context={config.profiling.memory_trace_context}, "
+                        f"stacks={config.profiling.memory_trace_stacks}"
+                    )
+                    torch.cuda.memory._record_memory_history(
+                        max_entries=MEMORY_SNAPSHOT_MAX_ENTRIES,
+                        enabled="all",  # Record all alloc/free operations for categorization
+                        context=config.profiling.memory_trace_context,
+                        stacks=config.profiling.memory_trace_stacks,
+                    )
+                else:
+                    torch.cuda.memory._record_memory_history(
+                        max_entries=MEMORY_SNAPSHOT_MAX_ENTRIES
+                    )
                 # when resume training, we start from the last step
                 self.step_num = step_num
                 self.freq = freq
@@ -123,16 +142,32 @@ def maybe_enable_memory_snapshot(config: JobConfig, *, global_step: int = 0):
                     os.makedirs(curr_snapshot_dir, exist_ok=True)
                 logger.info(f"Dumping memory snapshot at step {curr_step}")
                 begin = time.monotonic()
+                
+                # Save pickle snapshot (default format)
+                snapshot = torch.cuda.memory._snapshot()
                 with open(
                     f"{curr_snapshot_dir}/rank{rank}_memory_snapshot.pickle", "wb"
                 ) as output:
-                    pickle.dump(torch.cuda.memory._snapshot(), output)
+                    pickle.dump(snapshot, output)
+                
+                # If categorized memory is enabled, also export chrome trace format
+                if config.profiling.enable_categorized_memory:
+                    try:
+                        # Export chrome trace for memory timeline visualization
+                        chrome_trace_file = f"{curr_snapshot_dir}/rank{rank}_memory_timeline.json"
+                        torch.cuda.memory._export_memory_snapshot(
+                            snapshot, chrome_trace_file, start_ms=0
+                        )
+                        logger.info(f"Exported memory chrome trace to {chrome_trace_file}")
+                    except Exception as e:
+                        logger.warning(f"Failed to export memory chrome trace: {e}")
+                
                 logger.info(
                     f"Finished dumping memory snapshot in {time.monotonic() - begin:.2f} seconds"
                 )
 
         logger.info(f"Memory profiler active. Snapshot will be saved at {snapshot_dir}")
-        profiler = MemoryProfiler(global_step, config.profiling.profile_freq)
+        profiler = MemoryProfiler(global_step, config.profiling.profile_freq, config)
         try:
             yield profiler
         except torch.OutOfMemoryError as e:
