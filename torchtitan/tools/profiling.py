@@ -51,6 +51,16 @@ def maybe_enable_profiling(
                 curr_trace_dir, leaf_folder, f"rank{rank}_trace.json"
             )
             prof.export_chrome_trace(output_file)
+            
+            # Export memory timeline if categorized memory profiling is enabled
+            if profiling_config.enable_categorized_memory:
+                try:
+                    memory_timeline_file = os.path.join(curr_trace_dir, f"rank{rank}_memory_timeline.html")
+                    prof.export_memory_timeline(memory_timeline_file, device="cuda:0")
+                    logger.info(f"Exported memory timeline to {memory_timeline_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to export memory timeline: {e}")
+            
             logger.info(
                 f"Finished dumping profiler traces in {time.monotonic() - begin:.2f} seconds"
             )
@@ -147,10 +157,19 @@ def maybe_enable_memory_snapshot(
                     os.makedirs(curr_snapshot_dir, exist_ok=True)
                 logger.info(f"Dumping memory snapshot at step {curr_step}")
                 begin = time.monotonic()
+                # Save pickle snapshot with categorized memory information
+                snapshot = torch.cuda.memory._snapshot()
                 with open(
                     f"{curr_snapshot_dir}/rank{rank}_memory_snapshot.pickle", "wb"
                 ) as output:
-                    pickle.dump(torch.cuda.memory._snapshot(), output)
+                    pickle.dump(snapshot, output)
+                
+                # Log information about categorized profiling
+                if profiling_config.enable_categorized_memory:
+                    logger.info(
+                        f"Snapshot contains categorized memory data with stack traces. "
+                        f"View at https://pytorch.org/memory_viz by uploading the .pickle file"
+                    )
                 logger.info(
                     f"Finished dumping memory snapshot in {time.monotonic() - begin:.2f} seconds"
                 )
