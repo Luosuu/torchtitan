@@ -184,14 +184,20 @@ class MemoryComparisonRunner:
                 
                 # Show sample of output lines that might contain memory info
                 memory_lines = [line.strip() for line in output.split('\n') if 'GiB' in line and ('memory' in line or 'peak' in line)]
+                step_lines = [line.strip() for line in output.split('\n') if 'step:' in line and 'loss:' in line]
+                
                 if memory_lines:
                     print(f"  🔍 Debug: Found {len(memory_lines)} lines with memory info:")
                     for i, line in enumerate(memory_lines[:5]):  # Show first 5 lines
                         print(f"    [{i}]: {line}")
                     if len(memory_lines) > 5:
                         print(f"    ... and {len(memory_lines) - 5} more lines")
+                elif step_lines:
+                    print(f"  🔍 Debug: No direct memory lines found, but found {len(step_lines)} step lines:")
+                    for i, line in enumerate(step_lines[:3]):
+                        print(f"    [{i}]: {line}")
                 else:
-                    print(f"  🔍 Debug: No lines found containing both 'GiB' and ('memory' or 'peak')")
+                    print(f"  🔍 Debug: No lines found containing 'GiB' or 'step:'")
                     # Show some sample lines to understand the format
                     sample_lines = [line.strip() for line in output.split('\n')[-20:] if line.strip()]
                     print(f"  🔍 Debug: Last 10 non-empty lines of output:")
@@ -404,20 +410,26 @@ class MemoryComparisonRunner:
         matching_lines = []
         
         for line in output.split('\n'):
-            if "peak:" in line and "GiB" in line:
+            # Look for both peak memory format and regular memory format
+            if ("peak:" in line and "GiB" in line) or ("memory:" in line and "GiB" in line and "%" in line):
                 matching_lines.append(line.strip())
                 try:
-                    # Look for pattern like "peak: 1.23GiB"
-                    parts = line.split("peak:")[1].strip().split("GiB")[0]
-                    peak_values.append(float(parts))
+                    if "peak:" in line:
+                        # Look for pattern like "peak: 1.23GiB"
+                        parts = line.split("peak:")[1].strip().split("GiB")[0]
+                        peak_values.append(float(parts))
+                    elif "memory:" in line:
+                        # Look for pattern like "memory: 36.57GiB(38.49%)"  
+                        parts = line.split("memory:")[1].strip().split("GiB")[0]
+                        peak_values.append(float(parts))
                 except (IndexError, ValueError) as e:
-                    print(f"  🔍 Debug: Failed to parse peak line: '{line.strip()}' - {e}")
+                    print(f"  🔍 Debug: Failed to parse memory line: '{line.strip()}' - {e}")
                     continue
         
-        print(f"  🔍 Debug: Found {len(matching_lines)} lines with 'peak:' and 'GiB'")
+        print(f"  🔍 Debug: Found {len(matching_lines)} lines with memory info")
         if matching_lines:
-            print(f"  🔍 Debug: Sample peak lines: {matching_lines[:3]}")
-        print(f"  🔍 Debug: Parsed peak values: {peak_values}")
+            print(f"  🔍 Debug: Sample memory lines: {matching_lines[:3]}")
+        print(f"  🔍 Debug: Parsed memory values: {peak_values}")
         
         return max(peak_values) if peak_values else None
     
