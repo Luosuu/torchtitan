@@ -178,14 +178,39 @@ class MemoryComparisonRunner:
             if process.returncode == 0:
                 # Parse output for memory statistics 
                 output = process.stdout
+                print(f"  🔍 Debug: Parsing training output ({len(output)} chars)")
+                
+                # Show sample of output lines that might contain memory info
+                memory_lines = [line.strip() for line in output.split('\n') if 'GiB' in line and ('memory' in line or 'peak' in line)]
+                if memory_lines:
+                    print(f"  🔍 Debug: Found {len(memory_lines)} lines with memory info:")
+                    for i, line in enumerate(memory_lines[:5]):  # Show first 5 lines
+                        print(f"    [{i}]: {line}")
+                    if len(memory_lines) > 5:
+                        print(f"    ... and {len(memory_lines) - 5} more lines")
+                else:
+                    print(f"  🔍 Debug: No lines found containing both 'GiB' and ('memory' or 'peak')")
+                    # Show some sample lines to understand the format
+                    sample_lines = [line.strip() for line in output.split('\n')[-20:] if line.strip()]
+                    print(f"  🔍 Debug: Last 10 non-empty lines of output:")
+                    for i, line in enumerate(sample_lines[-10:]):
+                        print(f"    [{i}]: {line}")
+                
                 result.actual_peak_allocated_gib = self._parse_peak_allocated(output)
                 result.actual_peak_reserved_gib = self._parse_peak_reserved(output)
                 result.actual_peak_active_gib = self._parse_peak_active(output)
+                
+                print(f"  🔍 Debug: Parsed values - allocated: {result.actual_peak_allocated_gib}, reserved: {result.actual_peak_reserved_gib}")
+                
                 result.success = True
-                print(f"  ✓ Training completed: {result.actual_peak_allocated_gib:.2f} GiB peak allocated")
+                if result.actual_peak_allocated_gib is not None:
+                    print(f"  ✓ Training completed: {result.actual_peak_allocated_gib:.2f} GiB peak allocated")
+                else:
+                    print(f"  ⚠️ Training completed but could not parse peak allocated memory")
             else:
                 result.error_message = process.stderr
-                print(f"  ✗ Training failed: {result.error_message}")
+                print(f"  ✗ Training failed (return code {process.returncode}): {result.error_message[:200]}...")
+                print(f"  🔍 Debug: stdout: {process.stdout[:200]}...")
                 
         except Exception as e:
             result.error_message = str(e)
@@ -272,8 +297,10 @@ class MemoryComparisonRunner:
             # Print comparison summary
             if comparison_result.success:
                 print(f"  📊 Comparison Summary:")
-                print(f"     Estimated: {comparison_result.estimated_peak_gib:.2f} GiB")
-                print(f"     Actual:    {comparison_result.actual_peak_allocated_gib:.2f} GiB")
+                estimated_str = f"{comparison_result.estimated_peak_gib:.2f} GiB" if comparison_result.estimated_peak_gib is not None else "N/A"
+                actual_str = f"{comparison_result.actual_peak_allocated_gib:.2f} GiB" if comparison_result.actual_peak_allocated_gib is not None else "N/A"
+                print(f"     Estimated: {estimated_str}")
+                print(f"     Actual:    {actual_str}")
                 if comparison_result.estimation_error_pct is not None:
                     print(f"     Error:     {comparison_result.estimation_error_pct:+.1f}%")
             else:
@@ -284,7 +311,7 @@ class MemoryComparisonRunner:
                 if comparison_result.actual_peak_allocated_gib is not None:
                     print(f"     Actual:    {comparison_result.actual_peak_allocated_gib:.2f} GiB")
                 else:
-                    print(f"     Actual:    N/A (training failed)")
+                    print(f"     Actual:    N/A (parsing failed)")
         
         self.results.extend(all_results)
         return all_results
@@ -372,27 +399,47 @@ class MemoryComparisonRunner:
     def _parse_peak_allocated(self, output: str) -> Optional[float]:
         """Parse peak allocated memory from training output."""
         peak_values = []
+        matching_lines = []
+        
         for line in output.split('\n'):
             if "peak:" in line and "GiB" in line:
+                matching_lines.append(line.strip())
                 try:
                     # Look for pattern like "peak: 1.23GiB"
                     parts = line.split("peak:")[1].strip().split("GiB")[0]
                     peak_values.append(float(parts))
-                except (IndexError, ValueError):
+                except (IndexError, ValueError) as e:
+                    print(f"  🔍 Debug: Failed to parse peak line: '{line.strip()}' - {e}")
                     continue
+        
+        print(f"  🔍 Debug: Found {len(matching_lines)} lines with 'peak:' and 'GiB'")
+        if matching_lines:
+            print(f"  🔍 Debug: Sample peak lines: {matching_lines[:3]}")
+        print(f"  🔍 Debug: Parsed peak values: {peak_values}")
+        
         return max(peak_values) if peak_values else None
     
     def _parse_peak_reserved(self, output: str) -> Optional[float]:
         """Parse peak reserved memory from training output."""
         peak_values = []
+        matching_lines = []
+        
         for line in output.split('\n'):
             if "memory:" in line and "GiB" in line and "%" in line:
+                matching_lines.append(line.strip())
                 try:
                     # Look for pattern like "memory: 1.23GiB(45.67%)"
                     parts = line.split("memory:")[1].strip().split("GiB")[0]
                     peak_values.append(float(parts))
-                except (IndexError, ValueError):
+                except (IndexError, ValueError) as e:
+                    print(f"  🔍 Debug: Failed to parse memory line: '{line.strip()}' - {e}")
                     continue
+        
+        print(f"  🔍 Debug: Found {len(matching_lines)} lines with 'memory:', 'GiB', and '%'")
+        if matching_lines:
+            print(f"  🔍 Debug: Sample memory lines: {matching_lines[:3]}")
+        print(f"  🔍 Debug: Parsed memory values: {peak_values}")
+        
         return max(peak_values) if peak_values else None
     
     def _parse_peak_active(self, output: str) -> Optional[float]:
