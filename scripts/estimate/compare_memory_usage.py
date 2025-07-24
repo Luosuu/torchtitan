@@ -278,6 +278,13 @@ class MemoryComparisonRunner:
                     print(f"     Error:     {comparison_result.estimation_error_pct:+.1f}%")
             else:
                 print(f"  ❌ Comparison failed")
+                # Print partial results if available
+                if comparison_result.estimated_peak_gib is not None:
+                    print(f"     Estimated: {comparison_result.estimated_peak_gib:.2f} GiB")
+                if comparison_result.actual_peak_allocated_gib is not None:
+                    print(f"     Actual:    {comparison_result.actual_peak_allocated_gib:.2f} GiB")
+                else:
+                    print(f"     Actual:    N/A (training failed)")
         
         self.results.extend(all_results)
         return all_results
@@ -324,8 +331,10 @@ class MemoryComparisonRunner:
         
         for result in comparison_results:
             error_str = f"{result.estimation_error_pct:+.1f}%" if result.estimation_error_pct is not None else "N/A"
+            estimated_str = f"{result.estimated_peak_gib:.2f}" if result.estimated_peak_gib is not None else "N/A"
+            actual_str = f"{result.actual_peak_allocated_gib:.2f}" if result.actual_peak_allocated_gib is not None else "N/A"
             print(f"{result.model_flavor:<12} {result.batch_size:<6} {result.seq_len:<7} "
-                  f"{result.estimated_peak_gib:<10.2f} {result.actual_peak_allocated_gib:<10.2f} {error_str:<8}")
+                  f"{estimated_str:<10} {actual_str:<10} {error_str:<8}")
         
         # Calculate statistics
         errors = [r.estimation_error_pct for r in comparison_results if r.estimation_error_pct is not None]
