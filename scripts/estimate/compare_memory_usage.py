@@ -143,17 +143,11 @@ class MemoryComparisonRunner:
         )
         
         try:
-            # Build command for training run (using same flags as run_train.sh)
-            cmd = [
-                "torchrun", 
-                f"--nproc_per_node={num_gpus}",
-                "--rdzv_backend", "c10d",
-                "--rdzv_endpoint=localhost:0",
-                "--local-ranks-filter", "0",  # Only show rank 0 output (where memory logs appear)
-                "--role", "rank",
-                "--tee", "3",  # Enable output redirection like run_train.sh
-                "-m", "torchtitan.train",
-                "--job.config_file", self.config_file,
+            # Use run_train.sh directly like debug_simpleFSDP.sh does
+            cmd = ["./run_train.sh"]
+            
+            # Add training configuration arguments
+            cmd.extend([
                 "--model.flavor", model_flavor,
                 "--training.local_batch_size", str(batch_size),
                 "--training.seq_len", str(seq_len),
@@ -161,7 +155,7 @@ class MemoryComparisonRunner:
                 "--training.enable_peak_memory_tracking",
                 "--training.reset_peak_memory_per_step",
                 "--metrics.log_freq", "1",  # Log every step
-            ]
+            ])
             
             # Add any additional overrides
             for key, value in overrides.items():
@@ -169,6 +163,8 @@ class MemoryComparisonRunner:
             
             # Set environment variables (same as run_train.sh)
             env = os.environ.copy()
+            env["CONFIG_FILE"] = self.config_file
+            env["NGPU"] = str(num_gpus)
             env["LOG_RANK"] = "0"  # Only show rank 0 logs
             env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
             
