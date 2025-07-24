@@ -19,7 +19,7 @@ log_with_timestamp() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-# Function to run estimation
+# Function to run estimation using the same approach as run_memory_estimation.sh
 run_estimation() {
     local config_name="$1"
     local batch_size="$2"
@@ -30,23 +30,23 @@ run_estimation() {
     log_with_timestamp ""
     log_with_timestamp "=== Estimating: $config_name, batch_size=$batch_size, activation_checkpoint=$activation_checkpoint ==="
     
-    local cmd="python -m scripts.estimate.estimation \
-        --job.config_file ./torchtitan/models/llama3/train_configs/llama3_8b.toml \
-        --memory_estimation.enabled \
-        --model.flavor 8B \
-        --training.local_batch_size $batch_size \
-        --training.seq_len $seq_len \
-        --activation_checkpoint.mode $activation_checkpoint \
-        --training.compile true"
+    # Use the same approach as run_memory_estimation.sh
+    local config_file="./torchtitan/models/llama3/train_configs/llama3_8b.toml"
+    local overrides="--model.flavor 8B --training.local_batch_size $batch_size --training.seq_len $seq_len --activation_checkpoint.mode $activation_checkpoint --training.compile true"
     
-    log_with_timestamp "Command: $cmd"
+    log_with_timestamp "Config: $config_file"
+    log_with_timestamp "Overrides: $overrides"
     log_with_timestamp ""
     
-    # Set environment variables
-    export WORLD_SIZE=$num_gpus
+    # Set environment variables (same as run_memory_estimation.sh)
+    export NGPU=$num_gpus
+    export NNODES=1
+    export WORLD_SIZE=$((num_gpus * 1))
     export LOCAL_RANK=0
+    export CONFIG_FILE="$config_file"
     
-    if eval "$cmd" 2>&1 | tee -a "$LOG_FILE"; then
+    # Run estimation using the same command structure as run_memory_estimation.sh
+    if python -m scripts.estimate.estimation --job.config_file "$config_file" --memory_estimation.enabled $overrides 2>&1 | tee -a "$LOG_FILE"; then
         log_with_timestamp "✓ Estimation completed successfully"
     else
         log_with_timestamp "✗ Estimation failed"
