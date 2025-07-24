@@ -143,15 +143,15 @@ class MemoryComparisonRunner:
         )
         
         try:
-            # Build command for training run
+            # Build command for training run (using same flags as run_train.sh)
             cmd = [
                 "torchrun", 
                 f"--nproc_per_node={num_gpus}",
                 "--rdzv_backend", "c10d",
                 "--rdzv_endpoint=localhost:0",
-                "--local-ranks-filter", "0",
+                "--local-ranks-filter", "0",  # Only show rank 0 output (where memory logs appear)
                 "--role", "rank",
-                "--tee", "3",
+                "--tee", "3",  # Enable output redirection like run_train.sh
                 "-m", "torchtitan.train",
                 "--job.config_file", self.config_file,
                 "--model.flavor", model_flavor,
@@ -167,11 +167,17 @@ class MemoryComparisonRunner:
             for key, value in overrides.items():
                 cmd.extend([f"--{key}", str(value)])
             
+            # Set environment variables (same as run_train.sh)
+            env = os.environ.copy()
+            env["LOG_RANK"] = "0"  # Only show rank 0 logs
+            env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+            
             # Run training and capture output
             process = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
+                env=env,
                 timeout=600  # 10 minute timeout
             )
             
