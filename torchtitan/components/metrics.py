@@ -424,12 +424,12 @@ class MetricsProcessor:
 
         self.logger.log(metrics, step)
 
+        color = self.color
+        
         # Include peak allocated memory in console output if tracking is enabled
         peak_memory_info = ""
         if self.job_config.training.enable_peak_memory_tracking:
             peak_memory_info = f"  {color.yellow}peak: {device_mem_stats.peak_allocated_gib:5.2f}GiB"
-
-        color = self.color
         logger.info(
             f"{color.red}step: {step:2}  "
             f"{color.green}loss: {global_avg_loss:7.4f}  "
