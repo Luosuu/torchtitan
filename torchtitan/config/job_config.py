@@ -251,6 +251,12 @@ class Training:
     deterministic: bool = False
     """Use deterministic algorithms wherever possible, may be slower"""
 
+    enable_peak_memory_tracking: bool = False
+    """Enable tracking of peak memory usage using torch.cuda.max_memory_allocated"""
+
+    reset_peak_memory_per_step: bool = True
+    """Reset peak memory statistics after each training step for per-step tracking"""
+
 
 @dataclass
 class Parallelism:
