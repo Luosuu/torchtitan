@@ -34,6 +34,8 @@ DeviceMemStats = namedtuple(
         "max_reserved_pct",
         "num_alloc_retries",
         "num_ooms",
+        "peak_allocated_gib",
+        "peak_allocated_pct",
     ],
 )
 
@@ -74,6 +76,11 @@ class DeviceMemoryMonitor:
         num_retries = device_info.get("num_alloc_retries", -1)
         num_ooms = device_info.get("num_ooms", -1)
 
+        # Get peak allocated memory using torch.cuda.max_memory_allocated
+        peak_allocated = device_module.max_memory_allocated(self.device)
+        peak_allocated_gib = self._to_gib(peak_allocated)
+        peak_allocated_pct = self._to_pct(peak_allocated)
+
         if num_retries > 0:
             logger.warning(
                 f"{num_retries} {device_type.upper()} memory allocation retries."
@@ -88,10 +95,21 @@ class DeviceMemoryMonitor:
             max_reserved_pct,
             num_retries,
             num_ooms,
+            peak_allocated_gib,
+            peak_allocated_pct,
         )
 
     def reset_peak_stats(self):
         device_module.reset_peak_memory_stats()
+
+    def reset_max_memory_allocated(self):
+        """Reset the peak memory allocated counter specifically."""
+        device_module.reset_peak_memory_stats()
+
+    def get_max_memory_allocated(self):
+        """Get current max memory allocated in GiB."""
+        peak_allocated = device_module.max_memory_allocated(self.device)
+        return self._to_gib(peak_allocated)
 
 
 def build_device_memory_monitor():
@@ -395,6 +413,8 @@ class MetricsProcessor:
             "memory/max_active(%)": device_mem_stats.max_active_pct,
             "memory/max_reserved(GiB)": device_mem_stats.max_reserved_gib,
             "memory/max_reserved(%)": device_mem_stats.max_reserved_pct,
+            "memory/peak_allocated(GiB)": device_mem_stats.peak_allocated_gib,
+            "memory/peak_allocated(%)": device_mem_stats.peak_allocated_pct,
             "memory/num_alloc_retries": device_mem_stats.num_alloc_retries,
             "memory/num_ooms": device_mem_stats.num_ooms,
         }
@@ -404,13 +424,18 @@ class MetricsProcessor:
 
         self.logger.log(metrics, step)
 
+        # Include peak allocated memory in console output if tracking is enabled
+        peak_memory_info = ""
+        if self.job_config.training.enable_peak_memory_tracking:
+            peak_memory_info = f"  {color.yellow}peak: {device_mem_stats.peak_allocated_gib:5.2f}GiB"
+
         color = self.color
         logger.info(
             f"{color.red}step: {step:2}  "
             f"{color.green}loss: {global_avg_loss:7.4f}  "
             f"{color.orange}grad_norm: {grad_norm:7.4f}  "
             f"{color.turquoise}memory: {device_mem_stats.max_reserved_gib:5.2f}GiB"
-            f"({device_mem_stats.max_reserved_pct:.2f}%)  "
+            f"({device_mem_stats.max_reserved_pct:.2f}%){peak_memory_info}  "
             f"{color.blue}tps: {round(tps):,}  "
             f"{color.cyan}tflops: {tflops:,.2f}  "
             f"{color.magenta}mfu: {mfu:.2f}%{color.reset}"
@@ -419,7 +444,12 @@ class MetricsProcessor:
         self.ntokens_since_last_log = 0
         self.data_loading_times.clear()
         self.time_last_log = time.perf_counter()
-        self.device_memory_monitor.reset_peak_stats()
+        
+        # Reset peak stats - conditionally reset max_memory_allocated if per-step tracking enabled
+        if self.job_config.training.enable_peak_memory_tracking and self.job_config.training.reset_peak_memory_per_step:
+            self.device_memory_monitor.reset_max_memory_allocated()
+        else:
+            self.device_memory_monitor.reset_peak_stats()
 
     def log_validation(self, loss: float, step: int):
         time_delta = time.perf_counter() - self.time_last_log
@@ -438,6 +468,8 @@ class MetricsProcessor:
             "validation_metrics/memory/max_active(%)": device_mem_stats.max_active_pct,
             "validation_metrics/memory/max_reserved(GiB)": device_mem_stats.max_reserved_gib,
             "validation_metrics/memory/max_reserved(%)": device_mem_stats.max_reserved_pct,
+            "validation_metrics/memory/peak_allocated(GiB)": device_mem_stats.peak_allocated_gib,
+            "validation_metrics/memory/peak_allocated(%)": device_mem_stats.peak_allocated_pct,
         }
         self.logger.log(metrics, step)
 
