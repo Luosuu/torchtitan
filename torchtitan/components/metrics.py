@@ -13,6 +13,7 @@ from typing import Any, TYPE_CHECKING
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torchtitan.components.lr_scheduler import LRSchedulersContainer
+from torchtitan.components.memory_tracker import get_memory_collector, initialize_memory_collector
 from torchtitan.components.optimizer import OptimizersContainer
 from torchtitan.config import JobConfig
 from torchtitan.distributed import ParallelDims
@@ -363,6 +364,13 @@ class MetricsProcessor:
         self.time_last_log = time.perf_counter()
         self.device_memory_monitor.reset_peak_stats()
 
+        # Initialize memory data collector if enabled
+        if self.job_config.training.enable_memory_data_collection:
+            initialize_memory_collector(
+                max_history=self.job_config.training.memory_data_collection_max_history
+            )
+            logger.info("Memory data collection enabled")
+
         # These variables have to be set later as they depend on other components or model.
         self.num_flops_per_token = -1
         self.optimizers = None
@@ -398,6 +406,18 @@ class MetricsProcessor:
         time_data_loading_pct = 100 * sum(self.data_loading_times) / time_delta
 
         device_mem_stats = self.device_memory_monitor.get_peak_stats()
+
+        # Record structured memory data for programmatic access
+        memory_collector = get_memory_collector()
+        if memory_collector is not None:
+            metadata = {
+                "loss": global_avg_loss,
+                "grad_norm": grad_norm,
+                "tps": tps,
+                "tflops": tflops,
+                "mfu": mfu
+            }
+            memory_collector.record_memory_data(step, device_mem_stats, metadata)
 
         metrics = {
             "loss_metrics/global_avg_loss": global_avg_loss,

@@ -257,6 +257,12 @@ class Training:
     reset_peak_memory_per_step: bool = True
     """Reset peak memory statistics after each training step for per-step tracking"""
 
+    enable_memory_data_collection: bool = False
+    """Enable structured memory data collection for programmatic access"""
+
+    memory_data_collection_max_history: int = 1000
+    """Maximum number of memory snapshots to keep in memory"""
+
 
 @dataclass
 class Parallelism:
