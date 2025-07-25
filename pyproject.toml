@@ -12,22 +12,19 @@ keywords = ["pytorch", "training", "llm"]
 dependencies = [
     # PyTorch nightly for Linux (overridden to latest)
     "torch",
-    
     # Stateful Dataloader
     "torchdata>=0.8.0",
-
     # Hugging Face integrations
     "datasets>=2.21.0",
-
     # Tokenization
     "tokenizers",
-
     # Miscellaneous
     "tomli>=1.1.0",
     "fsspec",
     "tyro",
     "tensorboard",
-    "matplotlib"
+    "matplotlib",
+    "tabulate",
 ]
 dynamic = ["version"]
 
@@ -65,7 +62,8 @@ addopts = ["--showlocals"]  # show local variables in tracebacks
 prerelease = "allow"
 override-dependencies = [
     "torch==2.9.0.dev20250723+cu126",
-    "pytorch-triton==3.4.0+git11ec6354"
+    "pytorch-triton==3.4.0+git11ec6354",
+    "numpy==2.2.6"
 ]
 
 [[tool.uv.index]]
