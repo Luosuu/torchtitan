@@ -147,8 +147,11 @@ def test_callback_system():
     # Track calls to the callback
     callback_calls = []
     
-    def test_callback(snapshot: MemorySnapshot):
-        callback_calls.append(snapshot.step)
+    class TestCallback:
+        def on_memory_data(self, snapshot: MemorySnapshot):
+            callback_calls.append(snapshot.step)
+    
+    test_callback = TestCallback()
     
     # Add callback
     collector.add_callback(test_callback)
