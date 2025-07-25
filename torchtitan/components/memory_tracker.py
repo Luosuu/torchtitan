@@ -13,9 +13,10 @@ import json
 import time
 from collections import deque
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, TYPE_CHECKING
 
-from torchtitan.components.metrics import DeviceMemStats
+if TYPE_CHECKING:
+    from torchtitan.components.metrics import DeviceMemStats
 
 
 @dataclass
@@ -23,7 +24,7 @@ class MemorySnapshot:
     """A snapshot of memory data at a specific training step."""
     step: int
     timestamp: float
-    device_mem_stats: DeviceMemStats
+    device_mem_stats: "DeviceMemStats"
     metadata: Dict[str, Any]
 
 
@@ -56,7 +57,7 @@ class MemoryDataCollector:
     def record_memory_data(
         self, 
         step: int, 
-        device_mem_stats: DeviceMemStats, 
+        device_mem_stats: "DeviceMemStats", 
         metadata: Optional[Dict[str, Any]] = None
     ) -> None:
         """Record new memory data for the given step."""
