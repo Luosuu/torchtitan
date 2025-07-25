@@ -12,7 +12,7 @@ Provides structured access to memory data without requiring log parsing.
 import json
 import time
 from collections import deque
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -114,7 +114,7 @@ class MemoryDataCollector:
                 {
                     "step": snapshot.step,
                     "timestamp": snapshot.timestamp,
-                    "memory_stats": asdict(snapshot.device_mem_stats),
+                    "memory_stats": snapshot.device_mem_stats._asdict(),  # namedtuple method
                     "metadata": snapshot.metadata
                 }
                 for snapshot in self.history
