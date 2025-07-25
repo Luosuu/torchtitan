@@ -9,13 +9,9 @@
 Test script to validate the memory tracker integration.
 """
 
-import sys
 import tempfile
 import os
-
-# Add the project root to Python path
-project_root = os.path.join(os.path.dirname(__file__), '../..')
-sys.path.insert(0, project_root)
+from collections import namedtuple
 
 from torchtitan.components.memory_tracker import (
     MemoryDataCollector, 
@@ -23,7 +19,21 @@ from torchtitan.components.memory_tracker import (
     initialize_memory_collector,
     get_memory_collector
 )
-from torchtitan.components.metrics import DeviceMemStats
+
+# Create a fake DeviceMemStats for testing to avoid circular import issues
+DeviceMemStats = namedtuple(
+    "DeviceMemStats",
+    [
+        "max_active_gib",
+        "max_active_pct", 
+        "max_reserved_gib",
+        "max_reserved_pct",
+        "num_alloc_retries",
+        "num_ooms",
+        "peak_allocated_gib",
+        "peak_allocated_pct",
+    ],
+)
 
 
 def test_memory_collector():
@@ -202,4 +212,5 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
     sys.exit(main())
