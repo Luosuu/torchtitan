@@ -32,7 +32,7 @@ run_estimation() {
     
     # Use the same approach as run_memory_estimation.sh
     local config_file="./torchtitan/models/llama3/train_configs/llama3_8b.toml"
-    local overrides="--model.flavor 8B --training.local_batch_size $batch_size --training.seq_len $seq_len --activation_checkpoint.mode $activation_checkpoint --training.compile true"
+    local overrides="--model.flavor 8B --training.local_batch_size $batch_size --training.seq_len $seq_len --activation_checkpoint.mode $activation_checkpoint "
     
     log_with_timestamp "Config: $config_file"
     log_with_timestamp "Overrides: $overrides"
