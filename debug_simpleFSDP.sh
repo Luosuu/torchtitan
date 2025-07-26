@@ -7,11 +7,39 @@ uv pip show torch
 #     --training.compile \
 #     --profiling.enable_memory_snapshot \
 #     --profiling.save_memory_snapshot_folder memory_snapshot
-CONFIG_FILE="./torchtitan/models/llama3/train_configs/debug_model.toml" \
+# Test with 5 iterations per profile
+# CONFIG_FILE="./torchtitan/models/llama3/train_configs/debug_model.toml" \
+# ./run_train.sh \
+#     --model.name llama3_simple_fsdp \
+#     --training.compile \
+#     --profiling.enable_profiling \
+#     --profiling.enable_memory_snapshot \
+#     --profiling.enable_categorized_memory \
+#     --profiling.profile_active_steps 5 \
+#     --training.steps 50
+
+export NGPU=4
+
+CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
 ./run_train.sh \
     --model.name llama3_simple_fsdp \
     --training.compile \
-    --profiling.enable_profiling \
-    --profiling.enable_memory_snapshot \
-    --profiling.enable_categorized_memory \
-    --profiling.save_memory_snapshot_folder memory_snapshot
+    --training.steps 20 \
+    --training.local_batch_size 1 \
+    --activation_checkpoint.mode "none"
+
+CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
+./run_train.sh \
+    --model.name llama3_simple_fsdp \
+    --training.compile \
+    --training.steps 20 \
+    --training.local_batch_size 1 \
+    --activation_checkpoint.mode "full"
+
+CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
+./run_train.sh \
+    --model.name llama3_simple_fsdp \
+    --training.compile \
+    --training.steps 20 \
+    --training.local_batch_size 4 \
+    --activation_checkpoint.mode "full"
