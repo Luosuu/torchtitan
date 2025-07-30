@@ -99,7 +99,7 @@ class Model:
     flavor: str = "debugmodel"
     """Which model config to train"""
 
-    tokenizer_path: str = "./torchtitan/datasets/tokenizer/tokenizer.model"
+    tokenizer_path: str = "./tests/assets/tokenizer"
     """Tokenizer path"""
 
     converters: list[str] = field(default_factory=list)
@@ -176,11 +176,11 @@ class LRScheduler:
     - 'cosine': smoothly decays learning rate following a cosine curve
     """
 
-    lr_min: float = 0.0
+    min_lr_factor: float = 0.0
     """
     Min lr ratio for lr scheduler.
-    If provided, the range of decay factor is scaled from 1 to `lr_min`
-    to ensure the learning rate does not drop below `optimizer.lr * lr_scheduler.lr_min`.
+    If provided, the range of decay factor is scaled from 1 to `min_lr_factor`
+    to ensure the learning rate does not drop below `optimizer.lr * lr_scheduler.min_lr_factor`.
     """
 
 
@@ -394,6 +394,9 @@ class Checkpoint:
     When enable_checkpoint is set to true, checkpoints will be in {--job.dump_folder}/{--checkpoint.folder}.
     """
 
+    interval: int = 500
+    """Checkpointing interval in steps."""
+
     initial_load_path: str | None = None
     """
     This option specifies the path to the initial checkpoint to load, which is
@@ -415,13 +418,20 @@ class Checkpoint:
     This option specifies if only the model should be loaded during the initial
     checkpoint load. The option is only used when `initial_load_path` is specified.
     If False, the checkpoint at `initial_load_path` is treated as a standard training
-    checkpoint, including optimizer and training states.
+    checkpoint, including optimizer, lr scheduler, training states, etc.
     The default setting for this option is True. Note that you will have to use
     `--checkpoint.no_initial_load_model_only` to override the default setting.
     """
 
-    interval: int = 500
-    """Checkpointing interval in steps."""
+    initial_load_in_hf: bool = False
+    """
+    Enable the use of HuggingFace's safetensors format for checkpointing. The option
+    is only used when `initial_load_path` is specified. This will load checkpoints
+    in HF's model definition and safetensors format instead of the default torchtitan
+    model definition and DCP format, after necessary model state dict transformation.
+    `initial_load_model_only` must be true because safetensors doesn't support saving
+    non-tensors. The default value is False.
+    """
 
     last_save_model_only: bool = True
     """
@@ -432,16 +442,20 @@ class Checkpoint:
     The default value is True.
     """
 
+    last_save_in_hf: bool = False
+    """
+    Enable the use of Hugging Face's safetensors format for checkpointing. This will save the
+    final checkpoints in safetensors format instead of the default DCP format, after necessary
+    model state dict transformation. There will be a performance cost in using this as we need
+    to consolidate the sharded tensors to full tensors as a separate step.
+    last_save_model_only must be true because safetensors doesn't support saving
+    non-tensors. On load, this argument isn't needed as we will detect whether the loaded
+    checkpoint is in safetensors format or not. The default value is False.
+    """
+
     export_dtype: Literal["float16", "bfloat16", "float32"] = "float32"
     """
     Converts to the specified precision when training completes and last_save_model_only=true.
-    """
-
-    create_seed_checkpoint: bool = False
-    """
-    Initializes the full model without applying parallelisms, and then saves it as a seed checkpoint.
-    Note: requires user to call train.py without specifying any parallelisms, e.g. NGPU=1.
-    Could be implemented as a separate script, but this way shares more code.
     """
 
     async_mode: Literal["disabled", "async", "async_with_pinned_mem"] = "disabled"
@@ -486,15 +500,11 @@ class Checkpoint:
     for many steps or checkpointing too frequently. The default value is False.
     """
 
-    last_save_in_hf: bool = False
+    create_seed_checkpoint: bool = False
     """
-    Enable the use of Hugging Face's safetensors format for checkpointing. This will save the
-    final checkpoints in safetensors format instead of the default DCP format, after necessary
-    model state dict transformation. There will be a performance cost in using this as we need
-    to consolidate the sharded tensors to full tensors as a separate step.
-    last_save_model_only must be true because safetensors doesn't support saving
-    non-tensors. On load, this argument isn't needed as we will detect whether the loaded
-    checkpoint is in safetensors format or not. The default value is False.
+    Initializes the full model without applying parallelisms, and then saves it as a seed checkpoint.
+    Note: requires user to call train.py without specifying any parallelisms, e.g. NGPU=1.
+    Could be implemented as a separate script, but this way shares more code.
     """
 
 
