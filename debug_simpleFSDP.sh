@@ -18,15 +18,10 @@ uv pip show torch
 #     --profiling.profile_active_steps 5 \
 #     --training.steps 50
 
-export NGPU=4
+export TORCH_LOGS="output_code"
+export TORCH_COMPILE_DEBUG=1
 
-CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
-./run_train.sh \
-    --model.name llama3_simple_fsdp \
-    --training.compile \
-    --training.steps 20 \
-    --training.local_batch_size 1 \
-    --activation_checkpoint.mode "none"
+export NGPU=8
 
 CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
 ./run_train.sh \
@@ -36,10 +31,4 @@ CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
     --training.local_batch_size 1 \
     --activation_checkpoint.mode "full"
 
-CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
-./run_train.sh \
-    --model.name llama3_simple_fsdp \
-    --training.compile \
-    --training.steps 20 \
-    --training.local_batch_size 4 \
-    --activation_checkpoint.mode "full"
+cp -r /tmp/torchinductor_root/ ./torchinductor_root

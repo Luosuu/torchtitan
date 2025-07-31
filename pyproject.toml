@@ -25,6 +25,8 @@ dependencies = [
     "tensorboard",
     "matplotlib",
     "tabulate",
+    # Liger-Kernel for fused kernels
+    "liger-kernel",
 ]
 dynamic = ["version"]
 

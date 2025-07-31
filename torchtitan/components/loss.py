@@ -15,6 +15,28 @@ from torchtitan.tools.logging import logger
 LossFunction: TypeAlias = Callable[..., torch.Tensor]
 
 
+def is_liger_kernel_enabled(job_config: JobConfig) -> bool:
+    """Check if Liger-Kernel fused linear cross entropy is enabled"""
+    return job_config.liger_kernel.enable_fused_linear_cross_entropy
+
+
+def liger_fused_linear_cross_entropy_loss(
+    lin_weight: torch.Tensor, 
+    hidden_states: torch.Tensor, 
+    labels: torch.Tensor
+) -> torch.Tensor:
+    """Liger-Kernel fused linear cross entropy loss function"""
+    try:
+        from liger_kernel.transformers import LigerFusedLinearCrossEntropyLoss
+    except ImportError:
+        raise ImportError(
+            "liger-kernel is not installed. Please install it with: pip install liger-kernel"
+        )
+    
+    loss_fn = LigerFusedLinearCrossEntropyLoss(reduction="mean")
+    return loss_fn(lin_weight, hidden_states, labels)
+
+
 def cross_entropy_loss(pred: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """Common cross-entropy loss function for Transformer models training."""
     return torch.nn.functional.cross_entropy(
@@ -28,6 +50,27 @@ def build_cross_entropy_loss(job_config: JobConfig):
         logger.info("Compiling the loss function with torch.compile")
         loss_fn = torch.compile(loss_fn)
     return loss_fn
+
+
+def build_liger_fused_loss(job_config: JobConfig):
+    """Build Liger-Kernel fused linear cross entropy loss or fallback to standard"""
+    if is_liger_kernel_enabled(job_config):
+        logger.info("Using Liger-Kernel fused linear cross entropy loss")
+        
+        def fused_loss_wrapper(pred_or_loss: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+            # If pred_or_loss is already a scalar loss (from fused computation), return it
+            if pred_or_loss.dim() == 0:
+                return pred_or_loss
+            # Otherwise, apply standard cross entropy (fallback case)
+            return cross_entropy_loss(pred_or_loss, labels)
+        
+        loss_fn = fused_loss_wrapper
+        if job_config.training.compile:
+            logger.info("Compiling the Liger-Kernel fused loss function with torch.compile")
+            loss_fn = torch.compile(loss_fn)
+        return loss_fn
+    else:
+        return build_cross_entropy_loss(job_config)
 
 
 def rescale_accumulated_loss(unwrapped_loss_fn, accumulation_steps):
