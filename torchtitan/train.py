@@ -17,7 +17,7 @@ import torchtitan.protocols.train_spec as train_spec_module
 from torchtitan.components.checkpoint import CheckpointManager
 from torchtitan.components.dataloader import DataloaderStopIteration
 from torchtitan.components.ft import FTManager, maybe_semi_sync_training
-from torchtitan.components.loss import rescale_accumulated_loss
+from torchtitan.components.loss import rescale_accumulated_loss, is_liger_kernel_enabled
 from torchtitan.components.metrics import (
     build_metrics_processor,
     ensure_pp_loss_visible,
@@ -215,6 +215,14 @@ class Trainer(torch.distributed.checkpoint.stateful.Stateful):
         self.loss_fn = rescale_accumulated_loss(
             self.loss_fn, self.gradient_accumulation_steps
         )
+
+        # Check for incompatible configurations
+        if is_liger_kernel_enabled(job_config) and parallel_dims.pp_enabled:
+            raise RuntimeError(
+                "Liger-Kernel fused linear cross entropy is not currently compatible with "
+                "Pipeline Parallelism. Please disable either pipeline_parallel_degree or "
+                "liger_kernel.enable_fused_linear_cross_entropy."
+            )
 
         # apply parallelisms and initialization
         if parallel_dims.pp_enabled:
@@ -444,10 +452,21 @@ class Trainer(torch.distributed.checkpoint.stateful.Stateful):
             with self.train_context(optional_context_parallel_ctx):
                 assert len(model_parts) == 1
                 with self.maybe_enable_amp:
-                    pred = model_parts[0](inputs, eos_id=self.tokenizer.eos_id)
-                    loss = self.loss_fn(pred, labels)
-                # need to free to before bwd to avoid peaking memory
-                del pred
+                    # Check if Liger fused loss is enabled
+                    if is_liger_kernel_enabled(self.job_config):
+                        # Use fused loss - model returns loss directly
+                        loss = model_parts[0](
+                            inputs, 
+                            self.tokenizer.eos_id, 
+                            labels=labels, 
+                            use_liger_fused_loss=True
+                        )
+                    else:
+                        # Standard approach - model returns logits, then compute loss
+                        pred = model_parts[0](inputs, self.tokenizer.eos_id)
+                        loss = self.loss_fn(pred, labels)
+                        # need to free to before bwd to avoid peaking memory
+                        del pred
                 loss.backward()
 
         return loss
