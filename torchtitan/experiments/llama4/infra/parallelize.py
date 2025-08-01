@@ -109,7 +109,7 @@ def parallelize_llama(
 
     # turn on per-TransformerBlock compile after AC wrapping and before FSDP
     if job_config.training.compile:
-        apply_compile(model)
+        apply_compile(model, job_config)
 
         # NOTE: needed for torch.compile to work with dynamic shapes in token-choice MoE
         torch._dynamo.config.capture_scalar_outputs = True

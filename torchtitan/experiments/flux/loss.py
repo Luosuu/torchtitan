@@ -22,6 +22,6 @@ def mse_loss(pred: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 def build_mse_loss(job_config: JobConfig):
     loss_fn = mse_loss
     if job_config.training.compile:
-        logger.info("Compiling the loss function with torch.compile")
-        loss_fn = torch.compile(loss_fn)
+        logger.info(f"Compiling the loss function with torch.compile (mode={job_config.training.compile_mode})")
+        loss_fn = torch.compile(loss_fn, mode=job_config.training.compile_mode)
     return loss_fn
