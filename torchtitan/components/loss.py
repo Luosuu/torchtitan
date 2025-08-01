@@ -33,7 +33,15 @@ def liger_fused_linear_cross_entropy_loss(
             "liger-kernel is not installed. Please install it with: pip install liger-kernel"
         )
     
-    loss_fn = LigerFusedLinearCrossEntropyLoss(reduction="mean")
+    # Reshape hidden_states to 2D (batch_size * seq_len, hidden_dim) if needed
+    if hidden_states.dim() == 3:
+        batch_size, seq_len, hidden_dim = hidden_states.shape
+        hidden_states = hidden_states.view(-1, hidden_dim)
+    
+    # Flatten labels to 1D if needed
+    labels = labels.flatten()
+    
+    loss_fn = LigerFusedLinearCrossEntropyLoss(reduction="mean", return_z_loss=False)
     return loss_fn(lin_weight, hidden_states, labels)
 
 
