@@ -20,6 +20,7 @@ def is_liger_kernel_enabled(job_config: JobConfig) -> bool:
     return job_config.liger_kernel.enable_fused_linear_cross_entropy
 
 
+@torch.compiler.disable
 def liger_fused_linear_cross_entropy_loss(
     lin_weight: torch.Tensor, 
     hidden_states: torch.Tensor, 
@@ -73,9 +74,9 @@ def build_liger_fused_loss(job_config: JobConfig):
             return cross_entropy_loss(pred_or_loss, labels)
         
         loss_fn = fused_loss_wrapper
+        # Note: Don't compile the fused loss wrapper since Liger-Kernel has torch.compile compatibility issues
         if job_config.training.compile:
-            logger.info("Compiling the Liger-Kernel fused loss function with torch.compile")
-            loss_fn = torch.compile(loss_fn)
+            logger.info("Liger-Kernel fused loss is not compiled due to torch.compile compatibility issues")
         return loss_fn
     else:
         return build_cross_entropy_loss(job_config)
