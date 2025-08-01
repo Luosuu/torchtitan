@@ -100,7 +100,7 @@ def parallelize_llama(
         logger.info("Applied Data Parallel (dp mode=%s) to the model", dp_mode)
 
     if job_config.training.compile:
-        torch._inductor.config.reorder_for_peak_memory = False
-        model = torch.compile(model, fullgraph=True)
+        torch._inductor.config.reorder_for_peak_memory = job_config.training.compile_inductor_reorder_for_peak_memory
+        model = torch.compile(model, fullgraph=True, mode=job_config.training.compile_mode)
 
     return model

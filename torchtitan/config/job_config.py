@@ -234,6 +234,20 @@ class Training:
     compile: bool = False
     """Whether to compile the model"""
 
+    compile_mode: Literal["default", "reduce-overhead", "max-autotune"] = "default"
+    """
+    Compilation mode for torch.compile:
+    - 'default': Default compilation behavior
+    - 'reduce-overhead': Optimized for lower overhead 
+    - 'max-autotune': Maximum optimization with longer compile time
+    """
+
+    compile_inductor_reorder_for_peak_memory: bool = False
+    """
+    Global control for torch._inductor.config.reorder_for_peak_memory.
+    When True, enables reordering operations to optimize peak memory usage.
+    """
+
     gc_freq: int = 50
     """Python garbage control scheduling interval, in steps"""
 

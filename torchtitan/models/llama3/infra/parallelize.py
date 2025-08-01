@@ -94,7 +94,7 @@ def parallelize_llama(
 
     # turn on per-TransformerBlock compile after AC wrapping and before FSDP
     if job_config.training.compile:
-        apply_compile(model)
+        apply_compile(model, job_config)
 
     if parallel_dims.fsdp_enabled:
         # apply FSDP or HSDP, potentially with Context Parallel
@@ -342,16 +342,19 @@ def apply_ac(model: nn.Module, ac_config: ACConfig):
     logger.info(f"Applied {ac_config.mode} activation checkpointing to the model")
 
 
-def apply_compile(model: nn.Module):
+def apply_compile(model: nn.Module, job_config: JobConfig):
     """
     Apply torch.compile to each TransformerBlock, which makes compilation efficient due to
     repeated structure. Alternatively one can compile the whole model (after applying DP).
     """
+    # Configure inductor settings
+    torch._inductor.config.reorder_for_peak_memory = job_config.training.compile_inductor_reorder_for_peak_memory
+    
     for layer_id, transformer_block in model.layers.named_children():
-        transformer_block = torch.compile(transformer_block, fullgraph=True)
+        transformer_block = torch.compile(transformer_block, fullgraph=True, mode=job_config.training.compile_mode)
         model.layers.register_module(layer_id, transformer_block)
 
-    logger.info("Compiling each TransformerBlock with torch.compile")
+    logger.info(f"Compiling each TransformerBlock with torch.compile (mode={job_config.training.compile_mode})")
 
 
 def apply_fsdp(
