@@ -20,7 +20,7 @@ def is_liger_kernel_enabled(job_config: JobConfig) -> bool:
     return job_config.liger_kernel.enable_fused_linear_cross_entropy
 
 
-@torch.compiler.disable
+@torch.compiler.set_stance("force_eager")
 def liger_fused_linear_cross_entropy_loss(
     lin_weight: torch.Tensor, 
     hidden_states: torch.Tensor, 
