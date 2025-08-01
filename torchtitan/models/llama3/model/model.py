@@ -402,8 +402,7 @@ class Transformer(nn.Module, ModelProtocol):
         tokens: torch.Tensor,
         eos_id: int | None = None,
         input_batch: torch.Tensor | None = None,
-        labels: torch.Tensor | None = None,
-        use_liger_fused_loss: bool = False,
+        return_hidden_states: bool = False,
     ):
         """
         Perform a forward pass through the Transformer model.
@@ -417,11 +416,10 @@ class Transformer(nn.Module, ModelProtocol):
                 This will always be the input batch regardless of the pipeline stage.
                 This field is required for non-first PP stages to perform document
                 masking attention (to analyze the boundary of the document).
-            labels (torch.Tensor): Target labels for loss computation (only used with fused loss).
-            use_liger_fused_loss (bool): Whether to use Liger-Kernel fused linear cross entropy.
+            return_hidden_states (bool): Whether to return hidden states before the final linear layer.
 
         Returns:
-            torch.Tensor: Output logits after applying the Transformer model, or loss if fused.
+            torch.Tensor: Output logits or hidden states if return_hidden_states=True.
 
         """
         if self.model_args.use_flex_attn:
@@ -437,10 +435,9 @@ class Transformer(nn.Module, ModelProtocol):
 
         h = self.norm(h) if self.norm else h
         
-        # If using Liger fused loss and labels are provided, compute fused loss
-        if use_liger_fused_loss and labels is not None and self.output is not None:
-            from torchtitan.components.loss import liger_fused_linear_cross_entropy_loss
-            return liger_fused_linear_cross_entropy_loss(self.output.weight, h, labels)
+        # Return hidden states if requested (for external Liger fused loss computation)
+        if return_hidden_states:
+            return h
         
         # Standard forward pass - compute logits
         output = self.output(h) if self.output else h

@@ -454,13 +454,14 @@ class Trainer(torch.distributed.checkpoint.stateful.Stateful):
                 with self.maybe_enable_amp:
                     # Check if Liger fused loss is enabled
                     if is_liger_kernel_enabled(self.job_config):
-                        # Use fused loss - model returns loss directly
-                        loss = model_parts[0](
-                            inputs, 
-                            self.tokenizer.eos_id, 
-                            labels=labels, 
-                            use_liger_fused_loss=True
+                        # For Liger fused loss, get hidden states from model and compute loss outside
+                        # Get hidden states before the final linear layer
+                        h = model_parts[0](inputs, self.tokenizer.eos_id, return_hidden_states=True)
+                        from torchtitan.components.loss import liger_fused_linear_cross_entropy_loss
+                        loss = liger_fused_linear_cross_entropy_loss(
+                            model_parts[0].output.weight, h, labels
                         )
+                        del h
                     else:
                         # Standard approach - model returns logits, then compute loss
                         pred = model_parts[0](inputs, self.tokenizer.eos_id)
