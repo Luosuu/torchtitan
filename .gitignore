@@ -42,3 +42,5 @@ Sessionx.vim
 .DS_Store
 
 reference/
+torchinductor_root/
+torch_compile_debug/
