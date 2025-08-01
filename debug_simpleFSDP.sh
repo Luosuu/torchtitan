@@ -31,4 +31,4 @@ CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
     --training.local_batch_size 1 \
     --activation_checkpoint.mode "full"
 
-cp -r /tmp/torchinductor_root/ ./torchinductor_root
+rsync -a /tmp/torchinductor_root/ ./torchinductor_root
