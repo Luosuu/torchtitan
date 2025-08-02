@@ -195,6 +195,24 @@ class Training:
     loaded from this path instead of downloaded.
     """
 
+    dataset_cache_dir: str | None = None
+    """
+    Custom directory for HuggingFace dataset cache. If not provided,
+    uses HF_HOME environment variable or default cache location.
+    """
+
+    dataset_force_download: bool = False
+    """
+    Force re-download of dataset even if cached locally. Useful for
+    updating cached datasets or troubleshooting cache issues.
+    """
+
+    dataset_offline_mode: bool = False
+    """
+    Fail if dataset is not cached locally (no network access allowed).
+    Useful for training in environments without internet access.
+    """
+
     local_batch_size: int = 8
     """Local batch size (i.e., per-device batch size)"""
 
@@ -780,6 +798,24 @@ class Validation:
 
     dataset_path: str | None = None
     """Path to dataset to use for validation"""
+
+    dataset_cache_dir: str | None = None
+    """
+    Custom directory for HuggingFace dataset cache. If not provided,
+    uses HF_HOME environment variable or default cache location.
+    """
+
+    dataset_force_download: bool = False
+    """
+    Force re-download of dataset even if cached locally. Useful for
+    updating cached datasets or troubleshooting cache issues.
+    """
+
+    dataset_offline_mode: bool = False
+    """
+    Fail if dataset is not cached locally (no network access allowed).
+    Useful for training in environments without internet access.
+    """
 
     local_batch_size: int = 8
     """Batch size for validation"""
