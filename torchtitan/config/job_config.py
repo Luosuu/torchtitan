@@ -252,7 +252,7 @@ class Training:
     compile: bool = False
     """Whether to compile the model"""
 
-    compile_mode: Literal["default", "reduce-overhead", "max-autotune"] = "default"
+    compile_mode: Literal["default", "reduce-overhead", "max-autotune", "max-autotune-no-cudagraphs"] = "default"
     """
     Compilation mode for torch.compile:
     - 'default': Default compilation behavior
