@@ -72,3 +72,96 @@ That's it! Your custom dataset is now ready to use with `torchtitan`.
 - Use `streaming=True` for large datasets to manage memory efficiently
 
 Now you can start training with your custom dataset!
+
+## Dataset Caching and Offline Mode
+
+`torchtitan` includes intelligent dataset caching to avoid repeated downloads from HuggingFace and enable offline training.
+
+### How It Works
+- **Automatic Cache Detection**: The system automatically detects if a dataset is already cached locally
+- **Smart Loading**: Prefers loading from local cache to avoid network requests
+- **HuggingFace Integration**: Uses standard HuggingFace cache locations (`HF_HOME` or `~/.cache/huggingface/datasets`)
+
+### Configuration Options
+
+Add these options to your training configuration:
+
+```toml
+[training]
+dataset = "c4"
+dataset_cache_dir = "/path/to/custom/cache"     # Optional: custom cache directory
+dataset_force_download = false                  # Force re-download even if cached
+dataset_offline_mode = false                    # Fail if dataset not cached (no network)
+
+[validation]
+dataset = "c4_validation" 
+dataset_cache_dir = "/path/to/custom/cache"     # Optional: custom cache directory
+dataset_force_download = false                  # Force re-download even if cached  
+dataset_offline_mode = false                    # Fail if dataset not cached (no network)
+```
+
+### Command Line Usage
+
+```bash
+# Use custom cache directory
+--training.dataset_cache_dir /path/to/cache
+
+# Force re-download even if cached
+--training.dataset_force_download
+
+# Offline mode (fail if not cached)
+--training.dataset_offline_mode
+
+# Set global cache via environment variable
+export HF_HOME=/path/to/huggingface/cache
+```
+
+### Use Cases
+
+**1. Offline Training**
+```toml
+[training]
+dataset = "c4"
+dataset_offline_mode = true  # Ensures no network requests
+```
+
+**2. Force Cache Refresh**
+```toml
+[training]
+dataset = "c4"
+dataset_force_download = true  # Re-downloads even if cached
+```
+
+**3. Custom Cache Location**
+```toml
+[training]
+dataset = "c4"
+dataset_cache_dir = "/fast/ssd/cache"  # Use high-speed storage
+```
+
+### Benefits
+- **Faster Startup**: No network delay for cached datasets
+- **Offline Capability**: Train without internet after initial download
+- **Rate Limit Avoidance**: Prevents 403 errors from excessive HuggingFace requests
+- **Storage Management**: Control where datasets are cached
+
+### Troubleshooting
+
+**Problem**: Getting 403 errors from HuggingFace  
+**Solution**: Enable offline mode if dataset is already cached:
+```bash
+--training.dataset_offline_mode
+```
+
+**Problem**: Dataset not loading from cache  
+**Solution**: Check cache location and force re-download:
+```bash
+python tests/test_dataset_cache.py  # Test cache detection
+--training.dataset_force_download   # Force fresh download
+```
+
+**Problem**: Running out of disk space  
+**Solution**: Use custom cache directory on larger storage:
+```bash
+--training.dataset_cache_dir /path/to/large/storage/cache
+```

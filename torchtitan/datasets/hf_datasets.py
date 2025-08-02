@@ -19,17 +19,51 @@ from torch.utils.data import IterableDataset
 from torchtitan.components.dataloader import ParallelAwareDataloader
 from torchtitan.components.tokenizer import BaseTokenizer
 from torchtitan.config import JobConfig
+from torchtitan.datasets.cache_utils import load_dataset_with_cache_fallback
 from torchtitan.tools.logging import logger
 
 
-def _load_c4_dataset(dataset_path: str, split: str):
-    """Load C4 dataset with default configuration."""
-    return load_dataset(dataset_path, name="en", split=split, streaming=True)
+def _load_c4_dataset(
+    dataset_path: str, 
+    split: str, 
+    cache_dir: str | None = None,
+    force_download: bool = False,
+    offline_mode: bool = False
+):
+    """Load C4 dataset with cache-aware loading."""
+    return load_dataset_with_cache_fallback(
+        dataset_path, 
+        name="en", 
+        split=split, 
+        streaming=True,
+        cache_dir=cache_dir,
+        force_download=force_download,
+        offline_mode=offline_mode
+    )
 
 
 def _process_c4_text(sample: dict[str, Any]) -> str:
     """Process C4 dataset sample text."""
     return sample["text"]
+
+
+def _load_generic_dataset(
+    dataset_path: str,
+    split: str = "train", 
+    cache_dir: str | None = None,
+    force_download: bool = False,
+    offline_mode: bool = False,
+    **kwargs
+):
+    """Generic dataset loader with cache-aware loading."""
+    return load_dataset_with_cache_fallback(
+        dataset_path,
+        split=split,
+        cache_dir=cache_dir,
+        force_download=force_download,
+        offline_mode=offline_mode,
+        **kwargs
+    )
 
 
 @dataclass
@@ -48,7 +82,7 @@ DATASETS = {
     ),
     "c4_test": DatasetConfig(
         path="tests/assets/c4_test",
-        loader=lambda path: load_dataset(path, split="train"),
+        loader=partial(_load_generic_dataset, split="train"),
         text_processor=_process_c4_text,
     ),
     "c4_validation": DatasetConfig(
@@ -85,6 +119,9 @@ class HuggingFaceDataset(IterableDataset, Stateful):
         dp_rank: int = 0,
         dp_world_size: int = 1,
         infinite: bool = False,
+        cache_dir: str | None = None,
+        force_download: bool = False,
+        offline_mode: bool = False,
     ) -> None:
         # Force lowercase for consistent comparison
         dataset_name = dataset_name.lower()
@@ -92,7 +129,19 @@ class HuggingFaceDataset(IterableDataset, Stateful):
         path, dataset_loader, text_processor = _validate_dataset(
             dataset_name, dataset_path
         )
-        ds = dataset_loader(path)
+        
+        # Try to pass cache parameters to the loader if it supports them
+        try:
+            ds = dataset_loader(
+                path, 
+                cache_dir=cache_dir,
+                force_download=force_download,
+                offline_mode=offline_mode
+            )
+        except TypeError:
+            # Fallback for loaders that don't support cache parameters
+            logger.debug(f"Dataset loader for {dataset_name} doesn't support cache parameters, using basic loading")
+            ds = dataset_loader(path)
 
         self.dataset_name = dataset_name
         self._data = split_dataset_by_node(ds, dp_rank, dp_world_size)
@@ -194,6 +243,9 @@ def build_hf_dataloader(
         dp_rank=dp_rank,
         dp_world_size=dp_world_size,
         infinite=infinite,
+        cache_dir=job_config.training.dataset_cache_dir,
+        force_download=job_config.training.dataset_force_download,
+        offline_mode=job_config.training.dataset_offline_mode,
     )
 
     return ParallelAwareDataloader(
@@ -224,6 +276,9 @@ def build_hf_validation_dataloader(
         dp_rank=dp_rank,
         dp_world_size=dp_world_size,
         infinite=False,
+        cache_dir=job_config.validation.dataset_cache_dir,
+        force_download=job_config.validation.dataset_force_download,
+        offline_mode=job_config.validation.dataset_offline_mode,
     )
 
     return ParallelAwareDataloader(
