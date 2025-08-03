@@ -179,51 +179,59 @@ def test_local_dataset_loading():
     print("✅ Local dataset loading test completed")
 
 
-def test_cache_aware_c4_loading():
-    """Test cache-aware C4 dataset loading (requires network or cache)"""
-    print("🧪 Testing cache-aware C4 dataset loading...")
+def test_cache_aware_dataset_loading():
+    """Test cache-aware dataset loading (requires network or cache)"""
+    print("🧪 Testing cache-aware dataset loading...")
     
-    # This test will attempt to load C4 dataset with cache awareness
+    # This test will attempt to load a simple dataset with cache awareness
+    # We use the Wikitext dataset as it's reliable and doesn't require scripts
     # It will succeed if:
     # 1. Dataset is already cached, OR
     # 2. Network is available for download
     
     try:
-        from torchtitan.datasets.hf_datasets import _load_c4_dataset
+        from torchtitan.datasets.cache_utils import load_dataset_with_cache_fallback
         
         # Try to load with offline mode first (cache only)
         try:
-            dataset = _load_c4_dataset(
-                "allenai/c4",
-                "train",
+            dataset = load_dataset_with_cache_fallback(
+                "wikitext",
+                name="wikitext-2-raw-v1",
+                split="train",
                 offline_mode=True
             )
-            print("✅ C4 dataset loaded from cache (offline mode)")
-            return
-        except ConnectionError:
-            print("ℹ️  C4 dataset not cached, will attempt download...")
-        
-        # Try to load with network (if available)
-        try:
-            dataset = _load_c4_dataset(
-                "allenai/c4", 
-                "train",
-                offline_mode=False
-            )
-            print("✅ C4 dataset loaded (with network access)")
+            print("✅ Wikitext dataset loaded from cache (offline mode)")
             
             # Take one sample to verify it works
             sample = next(iter(dataset))
             assert "text" in sample
-            print("✅ C4 dataset sample has expected structure")
+            print("✅ Wikitext dataset sample has expected structure")
+            return
+        except ConnectionError:
+            print("ℹ️  Wikitext dataset not cached, will attempt download...")
+        
+        # Try to load with network (if available)
+        try:
+            dataset = load_dataset_with_cache_fallback(
+                "wikitext", 
+                name="wikitext-2-raw-v1",
+                split="train",
+                offline_mode=False
+            )
+            print("✅ Wikitext dataset loaded (with network access)")
+            
+            # Take one sample to verify it works
+            sample = next(iter(dataset))
+            assert "text" in sample
+            print("✅ Wikitext dataset sample has expected structure")
             
         except Exception as e:
-            print(f"⚠️  Could not load C4 dataset (network may be unavailable): {e}")
+            print(f"⚠️  Could not load Wikitext dataset (network may be unavailable): {e}")
     
     except ImportError as e:
         print(f"⚠️  Could not import dataset functions: {e}")
     
-    print("✅ Cache-aware C4 loading test completed")
+    print("✅ Cache-aware dataset loading test completed")
 
 
 def main():
@@ -253,7 +261,7 @@ def main():
         test_local_dataset_loading()
         print()
         
-        test_cache_aware_c4_loading()
+        test_cache_aware_dataset_loading()
         print()
         
         print("=" * 60)

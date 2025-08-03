@@ -19,14 +19,16 @@ def get_hf_cache_dir() -> str:
     if hf_home:
         return os.path.join(hf_home, "datasets")
     
-    # Default HuggingFace cache location
-    xdg_cache = os.environ.get("XDG_CACHE_HOME")
-    if xdg_cache:
-        return os.path.join(xdg_cache, "huggingface", "datasets")
-    
-    # Fallback to home directory
+    # Set default HF_HOME to ~/huggingface_cache if not set
     home = os.path.expanduser("~")
-    return os.path.join(home, ".cache", "huggingface", "datasets")
+    default_hf_home = os.path.join(home, "huggingface_cache")
+    
+    # Set HF_HOME environment variable for this session
+    if "HF_HOME" not in os.environ:
+        os.environ["HF_HOME"] = default_hf_home
+        logger.debug(f"Set HF_HOME to default location: {default_hf_home}")
+    
+    return os.path.join(default_hf_home, "datasets")
 
 
 def _normalize_dataset_name(dataset_name: str) -> str:
@@ -39,7 +41,8 @@ def is_dataset_cached(
     dataset_path: str, 
     name: Optional[str] = None, 
     split: Optional[str] = None,
-    cache_dir: Optional[str] = None
+    cache_dir: Optional[str] = None,
+    **kwargs  # Accept additional keyword arguments and ignore them
 ) -> bool:
     """
     Check if a HuggingFace dataset is already cached locally.
@@ -131,7 +134,9 @@ def load_dataset_with_cache_fallback(
         ConnectionError: If offline_mode=True and dataset not cached
     """
     # Check if dataset is cached (unless forcing download)
-    if not force_download and is_dataset_cached(dataset_path, cache_dir=cache_dir, **kwargs):
+    # Extract relevant parameters for cache checking
+    cache_check_kwargs = {k: v for k, v in kwargs.items() if k in ['name', 'split']}
+    if not force_download and is_dataset_cached(dataset_path, cache_dir=cache_dir, **cache_check_kwargs):
         logger.info(f"Loading dataset '{dataset_path}' from local cache")
         try:
             # Set cache_dir if provided
