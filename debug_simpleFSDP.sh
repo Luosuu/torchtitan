@@ -24,11 +24,12 @@ export TORCH_COMPILE_DEBUG=1
 export NGPU=8
 
 CONFIG_FILE="./torchtitan/models/llama3/train_configs/llama3_8b.toml" \
-./run_train.sh \
+ ./run_train.sh \
     --model.name llama3_simple_fsdp \
     --training.compile \
     --training.steps 20 \
     --training.local_batch_size 1 \
-    --activation_checkpoint.mode "full"
+    --activation_checkpoint.mode "full" \
+2>&1 | tee run_train.log
 
 rsync -a /tmp/torchinductor_root/ ./torchinductor_root
