@@ -44,3 +44,4 @@ Sessionx.vim
 reference/
 torchinductor_root/
 torch_compile_debug/
+.venv/
